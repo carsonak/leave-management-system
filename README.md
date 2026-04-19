@@ -1,58 +1,138 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Leave Management API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A RESTful API for managing employee leave requests, built with **Laravel 13**, **SQLite**, and **Laravel Sanctum** for token-based authentication.
 
-## About Laravel
+## Tech Stack
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **PHP** 8.4
+- **Laravel** 13.5
+- **SQLite** (file-based, zero-config database)
+- **Laravel Sanctum** (API token authentication)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
-
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Setup Instructions
 
 ```bash
-composer require laravel/boost --dev
+# 1. Clone the repository
+git clone <repository-url>
+cd leave-management-system
 
-php artisan boost:install
+# 2. Copy the environment file
+cp .env.example .env
+
+# 3. Install PHP dependencies
+composer install
+
+# 4. Generate the application key
+php artisan key:generate
+
+# 5. Run migrations and seed the database
+php artisan migrate --seed
+
+# 6. Start the development server
+php artisan serve
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+## Authentication
 
-## Contributing
+The database seeder automatically creates two users and outputs their **plain-text Sanctum Bearer tokens** directly to the terminal when you run `php artisan migrate --seed`:
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+| User         | Email               | Role   |
+|--------------|---------------------|--------|
+| Admin User   | admin@example.com   | Admin  |
+| Normal User  | user@example.com    | User   |
 
-## Code of Conduct
+Copy the tokens from the terminal output and use them in the `Authorization: Bearer <token>` header for all API requests.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+> **Tip:** If you need to re-generate tokens, run `php artisan migrate:fresh --seed`.
 
-## Security Vulnerabilities
+## API Endpoints
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+All endpoints require the `Authorization: Bearer <token>` header.
+
+### Health Check
+
+| Method | Endpoint | Description       |
+|--------|----------|-------------------|
+| GET    | `/`      | API health status |
+
+### Normal User Endpoints
+
+| Method | Endpoint              | Description                                  |
+|--------|-----------------------|----------------------------------------------|
+| GET    | `/api/user`           | Get the authenticated user's profile         |
+| GET    | `/api/leave-requests` | List the authenticated user's leave requests |
+| POST   | `/api/leave-requests` | Create a new leave request                   |
+
+### Admin Endpoints
+
+| Method | Endpoint                              | Description                              |
+|--------|---------------------------------------|------------------------------------------|
+| GET    | `/api/admin/leave-requests/pending`   | List all pending leave requests          |
+| GET    | `/api/admin/leave-requests/user/{id}` | List all leave requests for a given user |
+| PATCH  | `/api/admin/leave-requests/{id}`      | Approve or reject a leave request        |
+
+## Testing with cURL
+
+Replace `<YOUR_TOKEN_HERE>` with the token printed by the seeder.
+
+### 1. Normal User — List My Leave Requests
+
+```bash
+curl -s http://localhost:8000/api/leave-requests \
+  -H "Authorization: Bearer <YOUR_TOKEN_HERE>" \
+  -H "Accept: application/json" | jq
+```
+
+### 2. Normal User — Create a Leave Request
+
+```bash
+curl -s -X POST http://localhost:8000/api/leave-requests \
+  -H "Authorization: Bearer <YOUR_TOKEN_HERE>" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "start_date": "2026-05-01",
+    "end_date": "2026-05-03",
+    "reason": "Family vacation"
+  }' | jq
+```
+
+### 3. Admin — View All Pending Leave Requests
+
+```bash
+curl -s http://localhost:8000/api/admin/leave-requests/pending \
+  -H "Authorization: Bearer <YOUR_TOKEN_HERE>" \
+  -H "Accept: application/json" | jq
+```
+
+### 4. Admin — Approve a Leave Request
+
+```bash
+curl -s -X PATCH http://localhost:8000/api/admin/leave-requests/1 \
+  -H "Authorization: Bearer <YOUR_TOKEN_HERE>" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "approved"
+  }' | jq
+```
+
+## Validation Rules
+
+### POST `/api/leave-requests`
+
+| Field        | Rules                                |
+|--------------|--------------------------------------|
+| `start_date` | required, date, after_or_equal:today |
+| `end_date`   | required, date, after:start_date     |
+| `reason`     | required, string                     |
+
+### PATCH `/api/admin/leave-requests/{id}`
+
+| Field    | Rules                          |
+|----------|--------------------------------|
+| `status` | required, in:approved,rejected |
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+This project is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
